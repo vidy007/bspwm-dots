@@ -1,0 +1,140 @@
+(defwidget bar [screen]
+  (centerbox :orientation "v"
+    (box :class "segment-top"
+         :valign "start"
+      (top :screen screen))
+    (box :valign "center"
+         :class "middle"
+      (middle :screen screen))
+    (box :valign "end"
+         :class "segment-bottom"
+      (bottom :screen screen))))
+
+(defwidget kbd []
+       (box :class "kbd-metric"
+       :orientation "v"
+       :space-evenly false
+       :valign "fill"
+       :vexpand false
+       :hexpand false
+       (box :orientation "v"
+           :valign "fill"
+           :vexpand true
+	   (label :text " ")
+       	   (label :text layout))))
+
+(defwidget top [screen]
+  (box :orientation "v"
+    (bspwm_desktops)
+    (systray :orientation "v" :icon-size "17")
+    ))
+
+(defwidget bspwm_desktops []
+  (box
+    :class "workspaces"
+    :spacing 6
+    :orientation "v"
+
+    (button
+      :class {focused_desktop == "cmd" ? "workspace-dot active" : "workspace-dot"}
+      :onclick "bspc desktop -f cmd"
+      "●")
+
+    (button
+      :class {focused_desktop == "web" ? "workspace-dot active" : "workspace-dot"}
+      :onclick "bspc desktop -f web"
+      "●")
+
+    (button
+      :class {focused_desktop == "etc" ? "workspace-dot active" : "workspace-dot"}
+      :onclick "bspc desktop -f etc"
+      "●")))
+
+(defwidget middle [] (time))
+(defwidget time []
+  (box :orientation "v"
+       :class "time"
+    hour min sec))
+
+(defwidget metric [icon ?font-size]
+  (box :class "metric"
+       :orientation "v"
+    (label :class "metric-icon"
+           :style {font-size != "" ? "font-size: ${font-size}rem;" : ""}
+           :text icon)
+    (children)))
+
+(defwidget bottom [screen]
+  (box :orientation "v"
+       :valign "end"
+       :space-evenly false
+       :spacing "5"
+
+    (kbd)
+    (volume)
+    (battery-metric)
+    (box :class "metric" (date))))
+
+(defwidget volume []
+  (box :class "volume-metric"
+       :orientation "v"
+       :space-evenly false
+       :valign "fill"
+       :vexpand false
+       :hexpand false
+    (scale :orientation "h"
+           :min 0
+           :max 100
+           :onchange "pamixer --set-volume $(echo {} | sed 's/\\..*//g')"
+           :value volume)
+    (box :vexpand true)
+    (eventbox :onscroll "if [ '{}' == 'up' ]; then pamixer -i 5; else pamixer -d 5; fi"
+              :vexpand true
+              :valign "fill"
+      (box :orientation "v"
+           :valign "fill"
+           :vexpand false
+          (label :class "volicon" :text "  ")
+        (button :onclick "pavucontrol &"
+          volume)))))
+
+(defwidget large-sym [sym]
+  (label :class "metric-icon large-symbol" :text sym))
+
+(defwidget battery-metric []
+	(box :class "battery"
+	     :orientation "v"
+	     :valign "fill"
+	     :vexpand false
+	     (label :class "batteryicon" :text baticon)
+	     (label :text bat)
+	)
+)
+
+(defwidget date []
+  (box :orientation "v"
+       :halign "center"
+    day_word day month year))
+
+(deflisten focused_desktop
+  :initial "1"
+  "~/.config/eww/scripts/bspwm-desktops.sh")
+(deflisten volume :initial "0" "./audio.sh volume")
+(defpoll layout :interval "1s" "xkblayout-state print '%s'")
+(defpoll hour :interval "1s" "date +%I")
+(defpoll min  :interval "1s" "date +%M")
+(defpoll sec  :interval "1s" "date +%S")
+(defpoll bat  :interval "60s" "upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep percentage | cut -b 26-")
+(deflisten baticon "~/ewwstatus.sh")
+(defpoll day_word :interval "10m" "date +%a | tr [:upper:] [:lower:]")
+(defpoll day      :interval "10m" "date +%b | tr [:upper:] [:lower:]")
+(defpoll month    :interval "1h"  "date +%d")
+(defpoll year     :interval "1h"  "date +%y")
+
+(defwindow bar_1
+  :monitor "eDP1"
+  :stacking "fg"
+  :geometry (geometry :x 0 :y 0 :width "40px" :height "100%" :anchor "center left")
+  :reserve (struts :distance "44px" :side "left")
+  :exclusive true
+  (bar :screen 1))
