@@ -1,0 +1,36 @@
+#! /bin/sh
+
+dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY
+
+pgrep -x sxhkd > /dev/null || sxhkd &
+
+bspc monitor -d cmd web etc
+
+bspc config border_width          1
+bspc config focused_border_color  "#ebbcba"
+bspc config normal_border_color   "#26233a"
+bspc config urgent_border_color   "#ebdbb2"
+bspc config window_gap            2
+bspc config top_padding 	  0  
+bspc config right_padding 	  0  
+bspc config left_padding 	  0  
+bspc config bottom_padding 	  0  
+
+bspc config split_ratio           0.50
+bspc config borderless_monocle    true 
+bspc config gapless_monocle       true
+bspc config single_monocle 	  true
+
+bspc config focus_follows_pointer true
+
+bspc rule -a Gimp desktop='etc' state=fullscreen follow=on
+bspc rule -a AmneziaVPN state=floating
+bspc rule -a steam state=fullscreen
+picom &
+feh --bg-scale ~/rosepine-birb.png &
+setxkbmap -model pc105 -layout us,ru -option grp:alt_shift_toggle &
+udiskie -s &
+xsetroot -cursor_name left_ptr &
+xcalib -d :0 ./lcd.icc
+~/touchpad
+copyq &
