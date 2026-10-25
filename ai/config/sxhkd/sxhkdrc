@@ -2,10 +2,6 @@
 super + Escape 
 	pkill -USR1 -x sxhkd
 
-# toggle touchpad
-super + ctrl + t
-	/usr/bin/touchpad_toggle.sh
-
 # screenshot management
 Print
 	~/.local/bin/rofiscripts/ssmenu
