@@ -1,5 +1,10 @@
 # bspwm-dots
 
+## First things first
+— *you committed "human-made" files with description "made with some help of Claude". Are you lying?*
+
+No, I'm not. Commit for the `human` and `ai` dirs was created by Claude. The 1122 files in the `human` directory are not. Everything that's Ai-assisted is located in the corresponding `ai` folder.
+
 ## Required programs
 
 - **WM / session:** bspwm, sxhkd, startx (xorg-xinit), xrdb, xsetroot, setxkbmap, dbus, systemd (user units), xdg-desktop-portal-gtk
