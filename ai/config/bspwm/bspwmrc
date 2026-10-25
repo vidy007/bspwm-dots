@@ -35,5 +35,6 @@ xsetroot -cursor_name left_ptr &
 tilt restore  # profile of the saved mode (~/.cache/tilt-mode); picom shader follows ~/.config/picom/tilt.glsl
 ~/touchpad
 copyq &
+eww open bar_1 &  # fullscreen-hide.sh only reacts to later events
 pgrep -f '[f]ullscreen-hide.sh' > /dev/null || ~/.config/eww/scripts/fullscreen-hide.sh &
 pgrep -f "[t]lp-refresh" > /dev/null || ~/.local/bin/tlp-refresh &  # on battery -> 48 Hz panel

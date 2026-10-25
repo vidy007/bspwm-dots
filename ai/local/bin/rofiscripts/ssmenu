@@ -32,6 +32,7 @@ function helpfn() {
 # Set inital options and choices
 
 save_folder="$HOME/Pictures/Screenshots"
+mkdir -p "$save_folder"
 options=("Fullscreen\nSelection\nCurrent Window\nTimer")
 choice=""
 

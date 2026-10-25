@@ -34,13 +34,10 @@
 
 Copy `ai/` and `human/` into `$HOME`: `config/` → `~/.config`, `local/` → `~/.local`, `themes/` → `~/.themes`, `icons/` → `~/.icons`, `home/*` → `~`.
 
-- `~/.local/bin` must be in `$PATH`: bspwmrc and sxhkdrc call `picom-mode` without a full path, so without it picom does not start.
 - The session starts via `startx` (`~/.xinitrc`); a display manager skips xsettingsd, dunst and the theme setup.
-- The eww bar opens on the first bspwm event (`fullscreen-hide.sh`), not right at login.
 - GTK4 apps stay unthemed: link `~/.config/gtk-4.0/{gtk.css,gtk-dark.css,assets}` to `~/.themes/Colloid-Dark-Catppuccin/gtk-4.0/`.
 - Enable the auto theme: `systemctl --user enable --now theme-auto.timer`.
 - Set your coordinates in `~/.local/bin/theme-sun` (default: New York, `40.71, -74.01`).
-- Create `~/Pictures/Screenshots` for the screenshot menu.
 - Harmless errors: bspwmrc calls `tilt`, `~/touchpad`, `tlp-refresh` (not included); sxhkd binds for `tilt`, `tpspeed`, `tpreset`, `touchpad_toggle.sh` do nothing.
 - The rofi power menu "lock" looks for betterlockscreen/i3lock; the lock screen is on `XF86Display` (F7).
 - `audio.sh toggle` uses specific sound devices; the battery widget reads `BAT0`.

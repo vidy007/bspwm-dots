@@ -1,6 +1,8 @@
 # xinput set-prop 10 368 0.4 &
 # dispwin /usr/share/color/icc/colord/tn.icc
 xrdb ~/.Xresources
+# sxhkdrc and bspwmrc call ~/.local/bin scripts (picom-mode, theme-switch) by name
+export PATH="$HOME/.local/bin:$PATH"
 # XInput2 lets Firefox get touchpad pinch (Miro zoom) and smooth scroll
 export MOZ_USE_XINPUT2=1
 sxhkd &
