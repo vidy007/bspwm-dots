@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+sleep 0.2
+playerctl play-pause
+command -v xsecurelock >/dev/null || { slock & exit; }  # fallback until xsecurelock is installed
+# password prompt in the current theme's Rosé Pine colors, like the lockclock saver
+[ "$(cat ~/.local/state/theme 2>/dev/null)" = light ] && bg='#faf4ed' fg='#575279' || bg='#191724' fg='#e0def4'
+LOCK_WINDOWS=$(bspc query -N -n .window | wc -l) \
+XSECURELOCK_SAVER=$HOME/.local/bin/lockclock \
+XSECURELOCK_COMPOSITE_OBSCURER=0 \
+XSECURELOCK_SHOW_DATETIME=0 XSECURELOCK_SHOW_HOSTNAME=0 XSECURELOCK_SHOW_USERNAME=0 \
+XSECURELOCK_FONT='IBM Plex Mono:medium:size=14' XSECURELOCK_PASSWORD_FONT='IBM Plex Mono:medium:size=70' \
+XSECURELOCK_PASSWORD_PROMPT=asterisks XSECURELOCK_AUTH_CURSOR_BLINK=0 XSECURELOCK_SHOW_KEYBOARD_LAYOUT=0 \
+XSECURELOCK_AUTH_BACKGROUND_COLOR=$bg XSECURELOCK_AUTH_FOREGROUND_COLOR=$fg \
+xsecurelock &

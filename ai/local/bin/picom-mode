@@ -1,0 +1,29 @@
+#!/bin/sh
+# Switch picom between the full config and the light battery config (restarts picom).
+#
+# usage: picom-mode [light|full|toggle|restart]
+#   light    ~/.config/picom-light.conf (glx + tilt shaders, no animations)
+#   full     ~/.config/picom.conf (glx, tilt shader, animations)
+#   toggle   flip between them (default without arguments)
+#   restart  restart picom in the saved mode (used by tilt and bspwmrc)
+set -eu
+export DISPLAY="${DISPLAY:-:0}"
+STATE="$HOME/.cache/picom-mode"
+mkdir -p "$(dirname "$STATE")"
+cur=$(cat "$STATE" 2>/dev/null || echo full)
+
+mode=${1:-toggle}
+[ "$mode" = toggle ] && { [ "$cur" = light ] && mode=full || mode=light; }
+[ "$mode" = restart ] && mode=$cur
+case $mode in
+    light) conf="$HOME/.config/picom-light.conf" ;;
+    full)  conf="$HOME/.config/picom.conf" ;;
+    *)     echo "usage: picom-mode [light|full|toggle|restart]" >&2; exit 1 ;;
+esac
+
+echo "$mode" > "$STATE"
+pkill -x picom || true
+sleep 0.3
+picom --config "$conf" -b
+[ "${1:-toggle}" = restart ] || { command -v notify-send >/dev/null && notify-send -t 1500 "picom: $mode"; }
+echo "picom: $mode"
