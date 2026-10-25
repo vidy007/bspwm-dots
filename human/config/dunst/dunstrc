@@ -1,0 +1,40 @@
+[global]
+    offset = (30, 60)
+    progress_bar_min_width = 380
+    progress_bar_max_width = 380
+    progress_bar_corner_radius = 2
+    origin = top-left
+    padding = 10
+    horizontal_padding = 10
+    frame_width = 1
+    gap_size = 3
+    font = IBM Plex Mono 11
+    icon_theme = "Colloid-Catppuccin-Light"
+    enable_recursive_icon_lookup = true
+    corner_radius = 3
+    notification_limit = 3
+    background = "#fffaf3"
+    foreground = "#464261"
+    format = <b><span size=12>%s</span></b>
+[urgency_low]
+    background = "#fffaf3"
+    highlight = "#797593"
+    frame_color = "#dfdad9"
+    default_icon = "dialog-information"
+    format = <b><span size=12>%s</span></b>
+
+[urgency_normal]
+    background = "#fffaf3"
+    highlight = "#464261"
+    frame_color = "#dfdad9"
+    default_icon = "dialog-warning"
+    format = "<b><span foreground='#464261'>%s</span></b>\n%b"
+
+[urgency_critical]
+    background = "#fffaf3"
+    highlight = "#d7827e"
+    frame_color = "#dfdad9"
+    default_icon = "dialog-error"
+    format = "<b><span foreground='#b4637a'>%s</span></b>\n%b"
+[urgency_volume]
+    format = <span size=12>%s</span>

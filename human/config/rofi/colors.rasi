@@ -1,0 +1,10 @@
+
+* {
+    font:                        "BlexMono Nerd Font 11";
+    background:     #faf4edff;
+    background-alt: #f2e9e1ff;
+    foreground:     #464261ff;
+    selected:       #907aa9ff;
+    active:         #286983ff;
+    urgent:         #b4637aff;
+}
