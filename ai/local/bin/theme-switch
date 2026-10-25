@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# theme-switch light|dark|toggle|auto
+set -u
+state_dir=${XDG_STATE_HOME:-$HOME/.local/state}
+state=$state_dir/theme
+auto_state=$state_dir/theme-auto
+backup=$state_dir/theme-backup
+cfg=$HOME/.config
+files=(
+    alacritty/colors.toml kitty/current-theme.conf dunst/dunstrc
+    rofi/colors.rasi rofi/this.rasi rofi/launcher.rasi eww/eww.scss bspwm/bspwmrc
+)
+mkdir -p "$state_dir"
+
+# keep untouched copies of everything we edit, once
+if [ ! -d "$backup" ]; then
+    mkdir -p "$backup"
+    for f in "${files[@]}" gtk-3.0/settings.ini gtk-4.0/settings.ini xsettingsd/xsettingsd.conf; do
+        [ -f "$cfg/$f" ] && cp --parents "$cfg/$f" "$backup" 2>/dev/null
+    done
+fi
+
+load() { # palette name -> assoc array via nameref
+    local -n out=$2
+    local k v
+    while IFS== read -r k v; do
+        [[ $k == [a-z]* ]] && out[$k]=${v//\"/}
+    done < "$HOME/.local/palette-$1"
+}
+
+target=${1:-toggle}
+case $target in
+    toggle) [ "$(cat "$state" 2>/dev/null)" = light ] && target=dark || target=light ;;
+    auto)
+        period=$("$HOME/.local/bin/theme-sun")
+        # act only when day/night actually changes, so a manual toggle sticks until the next sunrise/sunset
+        [ "$(cat "$auto_state" 2>/dev/null)" = "$period" ] && exit 0
+        echo "$period" > "$auto_state"
+        target=$period ;;
+    light|dark) ;;
+    *) echo "usage: theme-switch light|dark|toggle|auto" >&2; exit 1 ;;
+esac
+
+[ "$target" = light ] && other=dark || other=light
+declare -A from to
+load "$other" from
+load "$target" to
+
+# every palette colour of the other theme -> the same colour of the target theme
+sedargs=()
+for k in "${!from[@]}"; do
+    sedargs+=(-e "s/${from[$k]}/${to[$k]}/gI")
+done
+for f in "${files[@]}"; do
+    [ -f "$cfg/$f" ] && sed -i "${sedargs[@]}" "$cfg/$f"
+done
+
+if [ "$target" = light ]; then
+    wall=sunrise.png old_wall=sunset.png
+else
+    wall=sunset.png old_wall=sunrise.png
+fi
+sed -i "s/$old_wall/$wall/g" "$cfg/bspwm/bspwmrc" "$HOME/.fehbg" 2>/dev/null
+
+if [ "$target" = light ]; then
+    gtk=Colloid-Catppuccin icons=Colloid-Catppuccin-Light prefer=0 scheme=prefer-light
+    old_gtk=Colloid-Dark-Catppuccin old_icons=Colloid-Catppuccin-Dark
+else
+    gtk=Colloid-Dark-Catppuccin icons=Colloid-Catppuccin-Dark prefer=1 scheme=prefer-dark
+    old_gtk=Colloid-Catppuccin old_icons=Colloid-Catppuccin-Light
+fi
+# Colloid-Catppuccin is a prefix of the icon theme names, so match it only as a whole word
+for f in gtk-3.0/settings.ini gtk-4.0/settings.ini xsettingsd/xsettingsd.conf dunst/dunstrc; do
+    [ -f "$cfg/$f" ] && sed -E -i \
+        -e "s/$old_icons([^-A-Za-z0-9]|\$)/$icons\1/g" \
+        -e "s/$old_gtk([^-A-Za-z0-9]|\$)/$gtk\1/g" \
+        -e "s/^(gtk-application-prefer-dark-theme=).*/\1$prefer/" "$cfg/$f"
+done
+
+echo "$target" > "$state"
+
+# reload what can be reloaded live; failures are not fatal
+gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null
+pkill -HUP -x xsettingsd
+feh --no-fehbg --bg-scale "$HOME/$wall" 2>/dev/null
+pkill -USR1 -x kitty
+dunstctl reload 2>/dev/null
+eww reload 2>/dev/null
+bspc config focused_border_color "${to[rose]}" 2>/dev/null
+bspc config normal_border_color "${to[overlay]}" 2>/dev/null
+exit 0

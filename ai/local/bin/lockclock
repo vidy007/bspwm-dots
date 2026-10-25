@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""lockclock — xsecurelock saver: time, date and open-window count in Rosé Pine.
+
+Draws into $XSCREENSAVER_WINDOW (set by xsecurelock). Redraws only when the
+minute changes or the window is exposed. The palette follows
+~/.local/state/theme (theme-switch); fonts come from ~/.config/lockclock.conf
+and are re-read on every redraw. Window count comes from $LOCK_WINDOWS.
+
+Preview without locking:  lockclock [dark|light]          (live fullscreen window, any key closes)
+                          lockclock --png out.png [WIDTHxHEIGHT] [dark|light]
+"""
+import configparser
+import datetime as dt
+import os
+import sys
+
+import gi
+
+gi.require_version("Pango", "1.0")
+gi.require_version("PangoCairo", "1.0")
+from gi.repository import GLib, Pango, PangoCairo  # noqa: E402
+
+# Rosé Pine (dark) and Rosé Pine Dawn (light): base, text, subtle
+THEMES = {"dark": ("#191724", "#e0def4", "#908caa"), "light": ("#faf4ed", "#575279", "#797593")}
+STATE = os.path.expanduser("~/.local/state/theme")
+CONFIG = os.path.expanduser("~/.config/lockclock.conf")
+DEFAULT_FONTS = {  # used for keys missing from the config
+    "time": "Anthropic Serif,IBM Plex Serif",  # comma list: first installed family wins
+    "time_weight": "semibold",
+    "info": "IBM Plex Mono",
+    "info_weight": "medium",
+}
+
+
+def theme(name=None):
+    if name is None:
+        try:
+            name = open(STATE).read().strip()
+        except OSError:
+            name = "dark"
+    return THEMES.get(name, THEMES["dark"])
+
+
+def fonts():
+    cp = configparser.ConfigParser()
+    cp.read(CONFIG)
+    f = {**DEFAULT_FONTS, **(dict(cp["fonts"]) if cp.has_section("fonts") else {})}
+    weight = lambda k: getattr(Pango.Weight, f[k].upper().replace("-", "_"), Pango.Weight.NORMAL)  # noqa: E731
+    return f["time"], weight("time_weight"), f["info"], weight("info_weight")
+
+
+def rgb(h):
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+
+
+def ordinal(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def text(cr, s, family, weight, px, color, right, baseline):
+    """Draw s with its ink right edge at `right` and its baseline at `baseline`."""
+    layout = PangoCairo.create_layout(cr)
+    fd = Pango.FontDescription()
+    fd.set_family(family)
+    fd.set_weight(weight)
+    fd.set_absolute_size(px * Pango.SCALE)
+    layout.set_font_description(fd)
+    layout.set_text(s, -1)
+    ink, _ = layout.get_pixel_extents()
+    cr.set_source_rgb(*rgb(color))
+    cr.move_to(right - (ink.x + ink.width), baseline - layout.get_baseline() / Pango.SCALE)
+    PangoCairo.show_layout(cr, layout)
+
+
+def render(cr, w, h, theme_name=None, blank=False):
+    bg, fg, sub = theme(theme_name)
+    cr.set_source_rgb(*rgb(bg))
+    cr.paint()
+    if blank:  # password prompt is open: background only
+        return
+    time_font, time_weight, info_font, info_weight = fonts()
+    now = dt.datetime.now()
+    n = int(os.environ.get("LOCK_WINDOWS", "0") or 0)
+    right = w - 0.057 * w  # proportions measured on the 1920x1080 mockup
+    if n:
+        text(cr, f"{n} window{'s' if n != 1 else ''} active", info_font, info_weight, 0.052 * h, sub, right, 0.519 * h)
+    date = f"{now:%A} · {now:%B} {ordinal(now.day)} {now.year}".lower()
+    text(cr, date, info_font, info_weight, 0.052 * h, sub, right, 0.583 * h)
+    text(cr, f"{now:%H:%M}", time_font, time_weight, 0.385 * h, fg, right, 0.903 * h)
+
+
+def schedule(redraw):
+    """Call redraw at the next minute boundary (the date only changes there too)."""
+    now = dt.datetime.now()
+    ms = (60 - now.second) * 1000 - now.microsecond // 1000 + 20
+
+    def tick():
+        redraw()
+        schedule(redraw)
+        return False
+
+    GLib.timeout_add(ms, tick)
+
+
+def png(path, size="1366x768", theme_name=None):
+    import cairo
+
+    w, h = map(int, size.split("x"))
+    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+    render(cairo.Context(surface), w, h, theme_name)
+    surface.write_to_png(path)
+
+
+def preview(theme_name=None):
+    """Live fullscreen window drawn by the same render(); any key closes it."""
+    import subprocess
+
+    gi.require_version("Gdk", "3.0")
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("GdkPixbuf", "2.0")
+    from gi.repository import Gdk, GdkPixbuf, Gtk
+
+    count = subprocess.run(["bspc", "query", "-N", "-n", ".window"], capture_output=True, text=True).stdout
+    os.environ.setdefault("LOCK_WINDOWS", str(len(count.split())))
+    win, area = Gtk.Window(title="lockclock"), Gtk.DrawingArea()
+    area.connect("draw", lambda a, cr: render(cr, a.get_allocated_width(), a.get_allocated_height(), theme_name))
+    win.add(area)
+    blank = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 1, 1)
+    blank.fill(0)  # transparent 1x1: theme-independent, GoogleDot maps BLANK_CURSOR to a ring
+
+    def on_map(*_):
+        # bspwm drops a fullscreen request made before the window is managed, so ask once it is mapped
+        win.fullscreen()
+        # bspwm's motion_recorder window sits under the pointer, so a cursor on our window never shows;
+        # a pointer grab makes X use the grab's cursor (released when the preview exits)
+        cursor = Gdk.Cursor.new_from_pixbuf(win.get_display(), blank, 0, 0)
+        win.get_display().get_default_seat().grab(win.get_window(), Gdk.SeatCapabilities.ALL_POINTING,
+                                                  False, cursor, None, None, None)
+
+    win.connect("map-event", on_map)
+    win.connect("key-press-event", lambda *_: Gtk.main_quit())
+    win.connect("destroy", Gtk.main_quit)
+    win.show_all()
+    schedule(area.queue_draw)
+    Gtk.main()
+
+
+def auth_window(xid):
+    """xsecurelock's password-prompt window (WM_NAME "auth", main.c). It is a sibling of the
+    saver window, which may be an ancestor of ours (saver_multiplex adds a per-monitor child)."""
+    import ctypes
+
+    x11 = ctypes.CDLL("libX11.so.6")
+    x11.XOpenDisplay.restype = ctypes.c_void_p
+    x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    x11.XQueryTree.argtypes = [ctypes.c_void_p, ctypes.c_ulong] + [ctypes.c_void_p] * 4
+    x11.XFetchName.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(ctypes.c_char_p)]
+    x11.XFree.argtypes = [ctypes.c_void_p]
+    x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    dpy = x11.XOpenDisplay(None)
+    if not dpy:
+        return None
+
+    def tree(w):
+        root, parent, children, n = ctypes.c_ulong(), ctypes.c_ulong(), ctypes.POINTER(ctypes.c_ulong)(), ctypes.c_uint()
+        if not x11.XQueryTree(dpy, w, ctypes.byref(root), ctypes.byref(parent), ctypes.byref(children), ctypes.byref(n)):
+            return 0, root.value, []
+        kids = [children[i] for i in range(n.value)]
+        if children:
+            x11.XFree(children)
+        return parent.value, root.value, kids
+
+    def name(w):
+        p = ctypes.c_char_p()
+        x11.XFetchName(dpy, w, ctypes.byref(p))
+        return p.value  # leaks a few bytes once per lock; not worth an XFree with a cast
+
+    found, w = None, xid
+    for _ in range(4):  # saver child -> saver_window -> background_window
+        parent, root, _kids = tree(w)
+        if not parent or parent == root:
+            break
+        found = next((c for c in tree(parent)[2] if c != w and name(c) == b"auth"), None)
+        if found:
+            break
+        w = parent
+    x11.XCloseDisplay(dpy)
+    return found
+
+
+def set_background(xid, color):
+    """X fills exposed areas with the window background before any Expose; without one, the
+    space left when the password box shrinks keeps stale text (GDK never sees foreign Exposes)."""
+    import ctypes
+
+    x11 = ctypes.CDLL("libX11.so.6")
+    x11.XOpenDisplay.restype = ctypes.c_void_p
+    x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    x11.XSetWindowBackground.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong]
+    x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    dpy = x11.XOpenDisplay(None)
+    if dpy:
+        x11.XSetWindowBackground(dpy, xid, int(color[1:], 16))  # 24-bit TrueColor pixel = 0xRRGGBB
+        x11.XCloseDisplay(dpy)  # flushes
+
+
+def run_saver(xid):
+    gi.require_version("Gdk", "3.0")
+    gi.require_version("GdkX11", "3.0")
+    from gi.repository import Gdk, GdkX11
+
+    display = Gdk.Display.get_default()
+    win = GdkX11.X11Window.foreign_new_for_display(display, xid)
+    auth_xid = auth_window(xid)
+    auth = GdkX11.X11Window.foreign_new_for_display(display, auth_xid) if auth_xid else None
+    state = {"auth": False}  # the saver starts before the prompt; GDK's is_viewable() lies for foreign windows
+
+    def draw():
+        set_background(xid, theme()[0])  # every draw: follows a theme switch during the lock
+        ctx = win.begin_draw_frame(win.get_visible_region())
+        render(ctx.get_cairo_context(), win.get_width(), win.get_height(), blank=state["auth"])
+        win.end_draw_frame(ctx)
+
+    def on_event(ev, _):
+        if ev.type == Gdk.EventType.EXPOSE and ev.get_window() == win:
+            draw()
+        elif auth and ev.get_window() == auth and ev.type in (Gdk.EventType.MAP, Gdk.EventType.UNMAP):
+            state["auth"] = ev.type == Gdk.EventType.MAP
+            draw()
+
+    win.set_events(win.get_events() | Gdk.EventMask.EXPOSURE_MASK)
+    if auth:  # our own event mask on xsecurelock's window: map/unmap of the password prompt
+        auth.set_events(auth.get_events() | Gdk.EventMask.STRUCTURE_MASK)
+    Gdk.Event.handler_set(on_event, None)
+    draw()
+    schedule(draw)
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    assert ordinal(1) == "1st" and ordinal(12) == "12th" and ordinal(23) == "23rd" and ordinal(111) == "111th"
+    if len(sys.argv) > 2 and sys.argv[1] == "--png":
+        png(*sys.argv[2:5])
+    elif "XSCREENSAVER_WINDOW" in os.environ:
+        run_saver(int(os.environ["XSCREENSAVER_WINDOW"], 0))
+    else:
+        preview(sys.argv[1] if len(sys.argv) > 1 else None)
