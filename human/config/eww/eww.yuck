@@ -119,7 +119,7 @@
 (deflisten focused_desktop
   :initial "1"
   "~/.config/eww/scripts/bspwm-desktops.sh")
-(deflisten volume :initial "0" "./audio.sh volume")
+(deflisten volume :initial "0" "~/.config/eww/scripts/audio.sh volume")
 (deflisten layout "~/.config/eww/scripts/layout.sh")
 (deflisten tick :initial "{}" "~/.config/eww/scripts/tick.sh")
 (deflisten battery :initial "{}" "~/.config/eww/scripts/battery.sh")

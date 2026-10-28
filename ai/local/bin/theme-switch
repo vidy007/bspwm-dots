@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # theme-switch light|dark|toggle|auto
+# TODO: rewrite ts to be shorter cuz im not reading allat
 set -u
 state_dir=${XDG_STATE_HOME:-$HOME/.local/state}
 state=$state_dir/theme

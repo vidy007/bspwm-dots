@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# TODO: rewrite in either c++ or sh
 """Print 'light' between sunrise and sunset at LAT, LON, otherwise 'dark' (NOAA approximation)."""
 import math
 from datetime import datetime, timezone

@@ -9,6 +9,7 @@ and are re-read on every redraw. Window count comes from $LOCK_WINDOWS.
 Preview without locking:  lockclock [dark|light]          (live fullscreen window, any key closes)
                           lockclock --png out.png [WIDTHxHEIGHT] [dark|light]
 """
+# TODO: *somehow someday* do a recode (im crine)
 import configparser
 import datetime as dt
 import os
