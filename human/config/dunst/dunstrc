@@ -9,7 +9,7 @@
     frame_width = 1
     gap_size = 3
     font = IBM Plex Mono 11
-    icon_theme = "Colloid-Catppuccin-Light"
+    icon_theme = "Colloid-Orange-Catppuccin-Light"
     enable_recursive_icon_lookup = true
     corner_radius = 3
     notification_limit = 3

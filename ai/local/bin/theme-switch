@@ -51,8 +51,12 @@ sedargs=()
 for k in "${!from[@]}"; do
     sedargs+=(-e "s/${from[$k]}/${to[$k]}/gI")
 done
+# edit copies, not the live files: alacritty and eww reload on write and would switch ahead of everything else
+stage=$state_dir/theme-stage
 for f in "${files[@]}"; do
-    [ -f "$cfg/$f" ] && sed -i "${sedargs[@]}" "$cfg/$f"
+    [ -f "$cfg/$f" ] || continue
+    mkdir -p "$stage/${f%/*}"
+    cp -p "$cfg/$f" "$stage/$f" && sed -i "${sedargs[@]}" "$stage/$f"
 done
 
 if [ "$target" = light ]; then
@@ -60,43 +64,63 @@ if [ "$target" = light ]; then
 else
     wall=sunset.png old_wall=sunrise.png
 fi
-sed -i "s/$old_wall/$wall/g" "$cfg/bspwm/bspwmrc" "$HOME/.fehbg" 2>/dev/null
+sed -i "s/$old_wall/$wall/g" "$stage/bspwm/bspwmrc" "$HOME/.fehbg" 2>/dev/null
 
 if [ "$target" = light ]; then
-    gtk=Colloid-Catppuccin icons=Colloid-Catppuccin-Light prefer=0 scheme=prefer-light
-    old_gtk=Colloid-Dark-Catppuccin old_icons=Colloid-Catppuccin-Dark
+    gtk=Rosepine-Pink-Light icons=Colloid-Orange-Catppuccin-Light prefer=0 scheme=prefer-light
     cursor="GoogleDot Rose Pine Dawn"
 else
-    gtk=Colloid-Dark-Catppuccin icons=Colloid-Catppuccin-Dark prefer=1 scheme=prefer-dark
-    old_gtk=Colloid-Catppuccin old_icons=Colloid-Catppuccin-Light
+    gtk=Rosepine-Pink-Dark icons=Colloid-Orange-Catppuccin-Dark prefer=1 scheme=prefer-dark
     cursor="GoogleDot Rose Pine"
 fi
-# Colloid-Catppuccin is a prefix of the icon theme names, so match it only as a whole word
-for f in gtk-3.0/settings.ini gtk-4.0/settings.ini xsettingsd/xsettingsd.conf dunst/dunstrc; do
+# theme names are prefixes of each other (and nwg-look may change them), so every key is rewritten whole
+for f in gtk-3.0/settings.ini gtk-4.0/settings.ini; do
     [ -f "$cfg/$f" ] && sed -E -i \
-        -e "s/$old_icons([^-A-Za-z0-9]|\$)/$icons\1/g" \
-        -e "s/$old_gtk([^-A-Za-z0-9]|\$)/$gtk\1/g" \
+        -e "s/^(gtk-theme-name=).*/\1$gtk/" \
+        -e "s/^(gtk-icon-theme-name=).*/\1$icons/" \
         -e "s/^(gtk-application-prefer-dark-theme=).*/\1$prefer/" \
-        -e "s/^(gtk-cursor-theme-name=).*/\1$cursor/" \
-        -e "s/^(Gtk\/CursorThemeName ).*/\1\"$cursor\"/" "$cfg/$f"
+        -e "s/^(gtk-cursor-theme-name=).*/\1$cursor/" "$cfg/$f"
 done
-# the dark cursor name is a prefix of the light one, so cursor keys are rewritten whole, never substituted
+[ -f "$cfg/xsettingsd/xsettingsd.conf" ] && sed -E -i \
+    -e "s/^(Net\/ThemeName ).*/\1\"$gtk\"/" \
+    -e "s/^(Net\/IconThemeName ).*/\1\"$icons\"/" \
+    -e "s/^(Gtk\/CursorThemeName ).*/\1\"$cursor\"/" "$cfg/xsettingsd/xsettingsd.conf"
+sed -E -i "s/^( *icon_theme *= *).*/\1\"$icons\"/" "$cfg/dunst/dunstrc"
+sed -E -i \
+    -e "s/^(gtk-theme-name=).*/\1\"$gtk\"/" \
+    -e "s/^(gtk-icon-theme-name=).*/\1\"$icons\"/" \
+    -e "s/^(gtk-cursor-theme-name=).*/\1\"$cursor\"/" "$HOME/.gtkrc-2.0"
 sed -E -i "s/^(Xcursor\.theme:).*/\1 $cursor/" "$HOME/.Xresources"
 sed -E -i "s/^(Inherits=).*/\1$cursor/" "$HOME/.icons/default/index.theme"
-sed -E -i "s/^(gtk-cursor-theme-name=).*/\1\"$cursor\"/" "$HOME/.gtkrc-2.0"
+# libadwaita ignores gtk-theme-name and only loads ~/.config/gtk-4.0/gtk.css, so point the links at the theme
+gtk4=$HOME/.themes/$gtk/gtk-4.0
+if [ -d "$gtk4" ]; then
+    for l in assets gtk.css gtk-dark.css; do
+        ln -sfn "$gtk4/$l" "$cfg/gtk-4.0/$l"
+    done
+fi
 
 echo "$target" > "$state"
 
-# reload what can be reloaded live; failures are not fatal
-gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null
-gsettings set org.gnome.desktop.interface cursor-theme "$cursor" 2>/dev/null
-xrdb -merge "$HOME/.Xresources"
-xsetroot -cursor_name left_ptr
+# swap every edited file in at once, then fire all reloads together, so apps switch in one go, not one by one
+for f in "${files[@]}"; do
+    [ -f "$stage/$f" ] && mv -f "$stage/$f" "$cfg/$f"
+done
+# one dconf write instead of four gsettings calls: each call was a separate portal signal and a separate repaint
+dconf load / 2>/dev/null <<EOF &
+[org/gnome/desktop/interface]
+color-scheme='$scheme'
+gtk-theme='$gtk'
+icon-theme='$icons'
+cursor-theme='$cursor'
+EOF
 pkill -HUP -x xsettingsd
-feh --no-fehbg --bg-scale "$HOME/$wall" 2>/dev/null
 pkill -USR1 -x kitty
-dunstctl reload 2>/dev/null
-eww reload 2>/dev/null
-bspc config focused_border_color "${to[rose]}" 2>/dev/null
-bspc config normal_border_color "${to[overlay]}" 2>/dev/null
+{ xrdb -merge "$HOME/.Xresources"; xsetroot -cursor_name left_ptr; } &
+feh --no-fehbg --bg-scale "$HOME/$wall" 2>/dev/null &
+dunstctl reload 2>/dev/null &
+eww reload 2>/dev/null &
+bspc config focused_border_color "${to[rose]}" 2>/dev/null &
+bspc config normal_border_color "${to[overlay]}" 2>/dev/null &
+wait
 exit 0
