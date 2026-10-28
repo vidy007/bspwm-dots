@@ -65,22 +65,33 @@ sed -i "s/$old_wall/$wall/g" "$cfg/bspwm/bspwmrc" "$HOME/.fehbg" 2>/dev/null
 if [ "$target" = light ]; then
     gtk=Colloid-Catppuccin icons=Colloid-Catppuccin-Light prefer=0 scheme=prefer-light
     old_gtk=Colloid-Dark-Catppuccin old_icons=Colloid-Catppuccin-Dark
+    cursor="GoogleDot Rose Pine Dawn"
 else
     gtk=Colloid-Dark-Catppuccin icons=Colloid-Catppuccin-Dark prefer=1 scheme=prefer-dark
     old_gtk=Colloid-Catppuccin old_icons=Colloid-Catppuccin-Light
+    cursor="GoogleDot Rose Pine"
 fi
 # Colloid-Catppuccin is a prefix of the icon theme names, so match it only as a whole word
 for f in gtk-3.0/settings.ini gtk-4.0/settings.ini xsettingsd/xsettingsd.conf dunst/dunstrc; do
     [ -f "$cfg/$f" ] && sed -E -i \
         -e "s/$old_icons([^-A-Za-z0-9]|\$)/$icons\1/g" \
         -e "s/$old_gtk([^-A-Za-z0-9]|\$)/$gtk\1/g" \
-        -e "s/^(gtk-application-prefer-dark-theme=).*/\1$prefer/" "$cfg/$f"
+        -e "s/^(gtk-application-prefer-dark-theme=).*/\1$prefer/" \
+        -e "s/^(gtk-cursor-theme-name=).*/\1$cursor/" \
+        -e "s/^(Gtk\/CursorThemeName ).*/\1\"$cursor\"/" "$cfg/$f"
 done
+# the dark cursor name is a prefix of the light one, so cursor keys are rewritten whole, never substituted
+sed -E -i "s/^(Xcursor\.theme:).*/\1 $cursor/" "$HOME/.Xresources"
+sed -E -i "s/^(Inherits=).*/\1$cursor/" "$HOME/.icons/default/index.theme"
+sed -E -i "s/^(gtk-cursor-theme-name=).*/\1\"$cursor\"/" "$HOME/.gtkrc-2.0"
 
 echo "$target" > "$state"
 
 # reload what can be reloaded live; failures are not fatal
 gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null
+gsettings set org.gnome.desktop.interface cursor-theme "$cursor" 2>/dev/null
+xrdb -merge "$HOME/.Xresources"
+xsetroot -cursor_name left_ptr
 pkill -HUP -x xsettingsd
 feh --no-fehbg --bg-scale "$HOME/$wall" 2>/dev/null
 pkill -USR1 -x kitty

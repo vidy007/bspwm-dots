@@ -24,11 +24,12 @@ No, I'm not. Commit for the `human` and `ai` dirs was created by Claude. The 112
 ## Written from scratch by Claude
 
 - `local/bin/lockclock` — xsecurelock saver: clock, date and window count in the current theme
-- `local/bin/theme-switch` — light/dark switch for every themed config by palette
+- `local/bin/theme-switch` — light/dark switch for every themed config by palette, including the cursor (GoogleDot Rose Pine / Rose Pine Dawn)
 - `local/bin/theme-sun` — prints light/dark by sunrise/sunset for LAT, LON
 - `local/bin/picom-mode` — switches picom between the full and the light config
 - `config/systemd/user/theme-auto.service`, `theme-auto.timer` — runs `theme-switch auto` every 5 minutes
-- `config/eww/scripts/tick.sh` — per-minute clock and battery feed for the bar
+- `config/eww/scripts/tick.sh` — per-minute clock feed for the bar
+- `config/eww/scripts/battery.sh` — battery feed for the bar: redraws on udev power_supply events (charger plugged/unplugged), re-reads capacity every 30s
 - `config/eww/scripts/layout.sh` — keyboard layout feed for the bar
 - `config/eww/scripts/fullscreen-hide.sh` — hides the bar over fullscreen windows
 - `config/picom-light.conf` — picom without animations

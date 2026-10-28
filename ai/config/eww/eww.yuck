@@ -106,8 +106,8 @@
 	     :orientation "v"
 	     :valign "fill"
 	     :vexpand false
-	     (label :class "batteryicon" :text {tick.baticon})
-	     (label :text {tick.bat})
+	     (label :class "batteryicon" :text {battery.icon})
+	     (label :text {battery.bat})
 	)
 )
 
@@ -122,6 +122,7 @@
 (deflisten volume :initial "0" "./audio.sh volume")
 (deflisten layout "~/.config/eww/scripts/layout.sh")
 (deflisten tick :initial "{}" "~/.config/eww/scripts/tick.sh")
+(deflisten battery :initial "{}" "~/.config/eww/scripts/battery.sh")
 
 (defwindow bar_1
   :monitor "eDP1"
