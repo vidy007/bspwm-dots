@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+# Locker for xss-lock and the lock keys: runs ~/.local/bin/lock (which backgrounds xsecurelock),
+# holds the backlight at 50% while locked and stays in the foreground until unlock,
+# so xss-lock doesn't stack lockers.
+pgrep -xu "$USER" xsecurelock >/dev/null && exit
+# xsecurelock maps the saver window right away by default, before lockclock (~0.35 s python start) can draw
+XSECURELOCK_SAVER_DELAY_MS=600 ~/.local/bin/lock
+# drop our copy of the sleep-delay fd, or suspend waits for unlock; xsecurelock closes its own once locked
+[ -n "$XSS_SLEEP_LOCK_FD" ] && eval "exec $XSS_SLEEP_LOCK_FD>&-"
+bright=$(brightnessctl g)
+brightnessctl -q s 50%
+# pidfd-based wait (util-linux): no wakeups while locked
+pid=$(pgrep -nxu "$USER" xsecurelock) && waitpid "$pid"
+brightnessctl -q s "$bright"

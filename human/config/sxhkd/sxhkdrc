@@ -62,7 +62,7 @@ super + F11
 
 # lock screen with laptop-icon key (idk how its called)
 XF86Display
-	~/.local/bin/lock
+	~/.local/bin/autolock
 
 #
 # bspwm hotkeys

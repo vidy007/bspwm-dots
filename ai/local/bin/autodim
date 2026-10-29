@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+# xss-lock notifier: xsecurelock's dimmer that stays up until the lock screen covers it.
+# xss-lock SIGTERMs the notifier both on user activity and right before starting the locker;
+# in the second case keep the screen dark until xsecurelock is up, or it flashes bright for a second.
+for d in /usr/libexec/xsecurelock /usr/lib/xsecurelock; do [ -x $d/dimmer ] && dimmer=$d/dimmer; done
+# dimmer quits on its own after DIM + WAIT ms (default 2 + 5 s, shorter than xset s cycle) -- keep it dark until killed
+XSECURELOCK_DIM_TIME_MS=3000 XSECURELOCK_WAIT_TIME_MS=3600000 $dimmer & dim=$!
+stop() {
+	sleep 0.2
+	if pgrep -f 'bash .*/bin/autolock$' >/dev/null; then
+		for i in {1..30}; do pgrep -xu "$USER" xsecurelock >/dev/null && break; sleep 0.1; done
+		sleep 0.8  # autolock's XSECURELOCK_SAVER_DELAY_MS (0.6 s) before the lock windows show up
+	fi
+	kill $dim
+	exit
+}
+trap stop TERM
+wait

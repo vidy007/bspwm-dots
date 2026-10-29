@@ -24,12 +24,13 @@ coming soon i swear
 ### required packages (generic)
 ```
 bspwm sxhkd xorg-xinit xrdb xsetroot setxkbmap dbus xdg-desktop-portal-gtk picom eww xkblayout-state
-pamixer rofi dunst libnotify alacritty feh xsettingsd dconf xsecurelock python3 pygobject playerctl bspwm-slidefx maim xclip xdotool udiskie copyq brightnessctl
+pamixer rofi dunst libnotify alacritty feh xsettingsd dconf xsecurelock xss-lock python3 pygobject playerctl bspwm-slidefx maim xclip xdotool udiskie copyq brightnessctl util-linux
 ```
 fonts:
 ```
 blexmono-nerd-font ibm-plex-mono ibm-plex-serif font-awesome-6-free golos-text
 ```
+taken from google fonts: gravitas one (lock screen only)
 
 ### quickstart
 1. copy contents of /ai/ and /human/ into your homedir: 
@@ -58,5 +59,6 @@ systemctl --user enable --now theme-auto.timer
 - gtk4/libadwaita apps get the theme through `~/.config/gtk-4.0/{gtk.css,gtk-dark.css,assets}`; `theme-switch` links them to the current theme, so run it once after installing
 - sxhkd binds for `tilt`, `tpspeed` and `tpreset` do nothing -- i'm not planning to post thinkpad-centered scripts here as they're useless for other machines
 - the rofi power menu "lock" looks for betterlockscreen/i3lock; the lock screen is on `XF86Display` (f7)
+- the screen locks after 60 s idle (dims at 50 s) and before suspend via `xss-lock` (`autodim`, `autolock`); a fullscreen firefox/mpv window holds it off (`fsinhibit`)
 - the battery widget reads `BAT0`
 - `.xinitrc` stops portals with `systemctl --user`; on non-systemd systems this prints errors but the session starts (openrc variant coming soon)

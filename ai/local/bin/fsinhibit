@@ -1,0 +1,24 @@
+#!/usr/bin/bash
+# Turn off the X screensaver (xss-lock's idle trigger) and DPMS while a fullscreen firefox/mpv
+# window is focused. Event-driven via bspc subscribe: no wakeups between window changes.
+read -r timeout cycle < <(xset q | awk '/timeout:/ {print $2, $4}')
+inhibited=0
+check() {
+	if bspc query -T -n focused.fullscreen 2>/dev/null | grep -qiE '"className":"(firefox[^"]*|mpv)"'; then
+		[ $inhibited = 1 ] && return
+		xset s off -dpms; inhibited=1
+	else
+		[ $inhibited = 0 ] && return
+		# reset so the lock comes a full timeout after the video, not right away
+		xset s "$timeout" "$cycle" +dpms; xset s reset; inhibited=0
+	fi
+}
+trap '[ $inhibited = 1 ] && xset s "$timeout" "$cycle" +dpms' EXIT
+trap exit TERM INT HUP
+# started from .xinitrc before bspwm; reconnect after bspc wm -r
+while :; do
+	until bspc query -M >/dev/null 2>&1; do sleep 0.5; done
+	check
+	while read -r _; do check; done < <(bspc subscribe node_focus node_state node_remove desktop_focus)
+	sleep 0.5
+done
